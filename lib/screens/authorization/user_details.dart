@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:sppl_assignment/common/widgets/buttons.dart';
 import 'package:sppl_assignment/common/widgets/text_form_field.dart';
@@ -16,6 +17,7 @@ class _UserDetailsFormState extends State<UserDetailsForm> {
   TextEditingController nameController = TextEditingController();
   TextEditingController contactNumberController = TextEditingController();
   TextEditingController addressController = TextEditingController();
+
 
   @override
   void dispose() {
@@ -60,6 +62,8 @@ class _UserDetailsFormState extends State<UserDetailsForm> {
                 OutlinedButtonShow(buttonName: 'Submit', onPressedFunction: (){
                   if(_formKey.currentState!.validate()) {
 
+                    insertData(name: nameController.text, contactNumber: contactNumberController.text, address: addressController.text);
+
                   }
                 }),
               ],
@@ -69,6 +73,26 @@ class _UserDetailsFormState extends State<UserDetailsForm> {
       ),
     );
   }
+
+    insertData({required String name,required String contactNumber,required String address})async {
+      final databaseRef = FirebaseDatabase.instance.ref();
+
+      String? key = databaseRef.child("path").push().key;
+    databaseRef.child("path").child(key!).set({
+      "id" : key,
+      "name" : name,
+      "contactNumber" : contactNumber,
+      "address" : address,
+    });
+     // databaseRef.child('path').push().set({
+     //   "name" : name,
+     //   "contactNumber" : contactNumber,
+     //   "address" : address,
+     // });
+     nameController.clear();
+     contactNumberController.clear();
+     addressController.clear();
+    }
 
   Future<File?> pickDocument() async {
     final pickedFile = await FilePicker.platform.pickFiles(

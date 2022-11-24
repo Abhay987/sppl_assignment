@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "195262792034",
+    "project_id": "sppl-assignment",
+    "storage_bucket": "sppl-assignment.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:195262792034:android:cd3e1de2109852d8e1ac3b",
+        "android_client_info": {
+          "package_name": "com.example.sppl_assignment"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "195262792034-gl6636fdmql47mh24pl66jv600fe8hbc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD4M61EEubWaI2UmK5kVVsV_L9DItwnSAM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "195262792034-gl6636fdmql47mh24pl66jv600fe8hbc.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

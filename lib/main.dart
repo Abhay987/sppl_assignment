@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sppl_assignment/screens/authorization/user_details.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 
