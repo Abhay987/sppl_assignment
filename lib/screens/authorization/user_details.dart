@@ -1,7 +1,8 @@
-import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:sppl_assignment/common/widgets/buttons.dart';
 import 'package:sppl_assignment/common/widgets/text_form_field.dart';
 
@@ -13,10 +14,14 @@ class UserDetailsForm extends StatefulWidget {
 }
 
 class _UserDetailsFormState extends State<UserDetailsForm> {
+
+
   final GlobalKey<FormState> _formKey = GlobalKey();
   TextEditingController nameController = TextEditingController();
   TextEditingController contactNumberController = TextEditingController();
   TextEditingController addressController = TextEditingController();
+
+  PlatformFile? documentFile,imageFile;
 
 
   @override
@@ -41,7 +46,7 @@ class _UserDetailsFormState extends State<UserDetailsForm> {
               children: [
                 TextFormFieldShow(editingController: nameController, keyboardType: TextInputType.text,textName: 'Name',),
                 TextFormFieldShow(editingController: contactNumberController, keyboardType: TextInputType.number,textName: 'Phone Number',),
-                TextFormFieldShow(editingController: addressController, keyboardType: TextInputType.multiline,textName: 'Address',maxLines: null,),
+                TextFormFieldShow(editingController: addressController, keyboardType: TextInputType.multiline,textName: 'Address',maxLines: null,textInputAction: TextInputAction.newline,),
                Column(
                  mainAxisAlignment: MainAxisAlignment.start,
                  crossAxisAlignment: CrossAxisAlignment.start,
@@ -57,13 +62,38 @@ class _UserDetailsFormState extends State<UserDetailsForm> {
                       await pickImage();
                      }),
                    ],),
+                   Row(
+                     children: [
+                       Visibility(visible: documentFile != null,
+                           child: Expanded(child: Padding(
+                             padding: const EdgeInsets.only(top: 20),
+                             child: Text('Pdf : ${documentFile?.name}'),
+                           ))),
+                       Visibility(visible: imageFile != null,
+                         child: Expanded(child: Padding(
+                           padding: const EdgeInsets.only(top: 20),
+                           child: Text('Image : ${imageFile?.name}'),
+                         )),
+                       ),
+                     ],
+                   ),
                  ],
                ),
                 OutlinedButtonShow(buttonName: 'Submit', onPressedFunction: (){
+
                   if(_formKey.currentState!.validate()) {
-
-                    insertData(name: nameController.text, contactNumber: contactNumberController.text, address: addressController.text);
-
+                    // insertData(name: nameController.text, contactNumber: contactNumberController.text, address: addressController.text);
+                    if(documentFile == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Document File is not selected')));
+                    }
+                    else {
+                      if(imageFile == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Image File is not selected')));
+                      }
+                      else {
+                        uploadFiles(name: nameController.text, contactNumber: contactNumberController.text, address: """${addressController.text}""");
+                      }
+                    }
                   }
                 }),
               ],
@@ -74,53 +104,108 @@ class _UserDetailsFormState extends State<UserDetailsForm> {
     );
   }
 
-    insertData({required String name,required String contactNumber,required String address})async {
-      final databaseRef = FirebaseDatabase.instance.ref();
 
-      String? key = databaseRef.child("path").push().key;
-    databaseRef.child("path").child(key!).set({
-      "id" : key,
-      "name" : name,
-      "contactNumber" : contactNumber,
-      "address" : address,
+
+   uploadFiles({required String name,required String contactNumber,required String address}) {
+
+    final metaDataImage = SettableMetadata(contentType: 'image/jpeg');
+    final metaDataPdf = SettableMetadata(contentType: 'application/pdf');
+    final storageRef = FirebaseStorage.instance.ref();
+
+    Reference imageReference = storageRef.child("images/${DateTime.now().microsecondsSinceEpoch}.jpg");
+    Reference pdfReference = storageRef.child("documents/${DateTime.now().microsecondsSinceEpoch}.pdf");
+
+    UploadTask uploadImage = imageReference.putFile(File(imageFile!.path!),metaDataImage);
+    UploadTask uploadDocument = pdfReference.putFile(File(documentFile!.path!),metaDataPdf);
+
+     // String imageUrl = await imageReference.getDownloadURL(),documentUrl = await pdfReference.getDownloadURL();
+
+
+
+    uploadImage.snapshotEvents.listen((event) {
+      switch(event.state) {
+        case TaskState.paused:
+          break;
+        case TaskState.running:
+          break;
+        case TaskState.success:
+          uploadDocument.snapshotEvents.listen((eventSecond) async{
+            switch(eventSecond.state) {
+              case TaskState.paused:
+                break;
+              case TaskState.running:
+                break;
+              case TaskState.success:
+                insertData(name: name, contactNumber: contactNumber, address: address, imageUrl: await imageReference.getDownloadURL(), documentUrl: await pdfReference.getDownloadURL());
+                break;
+              case TaskState.canceled:
+                break;
+              case TaskState.error:
+                break;
+            }
+          });
+          break;
+        case TaskState.canceled:
+          break;
+        case TaskState.error:
+          break;
+      }
     });
-     // databaseRef.child('path').push().set({
-     //   "name" : name,
-     //   "contactNumber" : contactNumber,
-     //   "address" : address,
-     // });
-     nameController.clear();
-     contactNumberController.clear();
-     addressController.clear();
+
+  }
+
+
+    insertData({required String name,required String contactNumber,required String address,required String imageUrl,required String documentUrl}) {
+
+      final databaseRef = FirebaseDatabase.instance.ref().child("Users");
+      final String key = databaseRef.push().key!;
+
+      Map<String,dynamic> users = {
+        'id' : key,
+        "name" : name,
+        "contactNumber" : contactNumber,
+        "address" : address,
+        "imageFile" : imageUrl,
+        "documentFile" : documentUrl,
+      };
+
+      databaseRef.child(key).set(users);
+
     }
 
-  Future<File?> pickDocument() async {
-    final pickedFile = await FilePicker.platform.pickFiles(
+   pickDocument() async {
+    FilePickerResult? pickedFile = await FilePicker.platform.pickFiles(
         allowMultiple: false,
         type: FileType.custom,
         allowedExtensions: ["pdf"]); //Only PDF document files will be picked in the file picker
 
     if (pickedFile == null) {
-      return null;
+      documentFile = null;
     } else {
-      final pickedDocument = pickedFile.files.first;
-      return File(pickedDocument.path!);
+      PlatformFile pickedDocument = pickedFile.files.first;
+      documentFile =  pickedDocument;
     }
+    setState(() {
+
+    });
   }
 
 
-  Future<File?> pickImage() async {
-    final pickedFile = await FilePicker.platform.pickFiles(
+    pickImage() async {
+    FilePickerResult? pickedFile = await FilePicker.platform.pickFiles(
       allowMultiple: false,
       type: FileType.image, // Only images will be picked in the file picker
     );
 
     if (pickedFile == null) {
-      return null;
+      imageFile = null;
     } else {
-      final pickedImage = pickedFile.files.first;
-      return File(pickedImage.path!);
+      PlatformFile pickedImage = pickedFile.files.first;
+       imageFile = pickedImage;
     }
+    setState(() {
+
+    });
   }
 
 }

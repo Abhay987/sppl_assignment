@@ -6,7 +6,8 @@ class TextFormFieldShow extends StatelessWidget {
   final String textName;
   final bool isDisabled;
   final int? maxLines;
-  const TextFormFieldShow({Key? key,required this.editingController,required this.keyboardType,this.textName = "",this.isDisabled = false,this.maxLines = 1}) : super(key: key);
+  final TextInputAction textInputAction;
+  const TextFormFieldShow({Key? key,required this.editingController,required this.keyboardType,this.textName = "",this.isDisabled = false,this.maxLines = 1,this.textInputAction = TextInputAction.next}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +42,7 @@ class TextFormFieldShow extends StatelessWidget {
         ),
       ),
       controller: editingController,
-      textInputAction: TextInputAction.next,
+      textInputAction: textInputAction,
       onChanged: (value) {
         if (value.length == 1 && textName.isEmpty) {
           FocusScope.of(context).nextFocus();
