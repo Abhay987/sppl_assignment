@@ -4,8 +4,11 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:sppl_assignment/common/widgets/buttons.dart';
+import 'package:sppl_assignment/common/widgets/loading_alert_dialog.dart';
 import 'package:sppl_assignment/common/widgets/text_form_field.dart';
+import 'package:sppl_assignment/screens/home.dart';
 
+/// Contact Form
 class UserDetailsForm extends StatefulWidget {
   const UserDetailsForm({Key? key}) : super(key: key);
 
@@ -20,7 +23,7 @@ class _UserDetailsFormState extends State<UserDetailsForm> {
   TextEditingController nameController = TextEditingController();
   TextEditingController contactNumberController = TextEditingController();
   TextEditingController addressController = TextEditingController();
-
+  ValueNotifier<bool> isLoading = ValueNotifier<bool>(false);
   PlatformFile? documentFile,imageFile;
 
 
@@ -37,6 +40,10 @@ class _UserDetailsFormState extends State<UserDetailsForm> {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        floatingActionButton: ValueListenableBuilder<bool>(valueListenable: isLoading, builder: (BuildContext context, value, Widget? child) {
+          return Visibility(visible: value == true,child: const ShowLoadingAlertDialog(),);
+        },),
         body: Padding(
           padding: const EdgeInsets.all(20.0),
           child: Form(
@@ -105,15 +112,16 @@ class _UserDetailsFormState extends State<UserDetailsForm> {
   }
 
 
-
+    /// Upload Files eg - PDF , Image
    uploadFiles({required String name,required String contactNumber,required String address}) {
 
+     isLoading.value = true;
     final metaDataImage = SettableMetadata(contentType: 'image/jpeg');
     final metaDataPdf = SettableMetadata(contentType: 'application/pdf');
     final storageRef = FirebaseStorage.instance.ref();
 
-    Reference imageReference = storageRef.child("images/${DateTime.now().microsecondsSinceEpoch}.jpg");
-    Reference pdfReference = storageRef.child("documents/${DateTime.now().microsecondsSinceEpoch}.pdf");
+    Reference imageReference = storageRef.child("images/${DateTime.now()}.jpg");
+    Reference pdfReference = storageRef.child("documents/${DateTime.now()}.pdf");
 
     UploadTask uploadImage = imageReference.putFile(File(imageFile!.path!),metaDataImage);
     UploadTask uploadDocument = pdfReference.putFile(File(documentFile!.path!),metaDataPdf);
@@ -121,29 +129,34 @@ class _UserDetailsFormState extends State<UserDetailsForm> {
      // String imageUrl = await imageReference.getDownloadURL(),documentUrl = await pdfReference.getDownloadURL();
 
 
-
-    uploadImage.snapshotEvents.listen((event) {
+  /// Listen states when uploading files
+    uploadImage.snapshotEvents.listen((event) async{
       switch(event.state) {
         case TaskState.paused:
           break;
         case TaskState.running:
           break;
         case TaskState.success:
-          uploadDocument.snapshotEvents.listen((eventSecond) async{
-            switch(eventSecond.state) {
-              case TaskState.paused:
-                break;
-              case TaskState.running:
-                break;
-              case TaskState.success:
-                insertData(name: name, contactNumber: contactNumber, address: address, imageUrl: await imageReference.getDownloadURL(), documentUrl: await pdfReference.getDownloadURL());
-                break;
-              case TaskState.canceled:
-                break;
-              case TaskState.error:
-                break;
-            }
-          });
+          if(uploadDocument.snapshot.state == TaskState.success) {
+            insertData(name: name, contactNumber: contactNumber, address: address, imageUrl: await imageReference.getDownloadURL(), documentUrl: await pdfReference.getDownloadURL());
+        }
+          else {
+            uploadDocument.snapshotEvents.listen((eventSecond) async{
+              switch(eventSecond.state) {
+                case TaskState.paused:
+                  break;
+                case TaskState.running:
+                  break;
+                case TaskState.success:
+                  insertData(name: name, contactNumber: contactNumber, address: address, imageUrl: await event.ref.getDownloadURL(), documentUrl: await eventSecond.ref.getDownloadURL());
+                  break;
+                case TaskState.canceled:
+                  break;
+                case TaskState.error:
+                  break;
+              }
+            });
+          }
           break;
         case TaskState.canceled:
           break;
@@ -154,10 +167,10 @@ class _UserDetailsFormState extends State<UserDetailsForm> {
 
   }
 
-
+   ///  Connect To Firebase
     insertData({required String name,required String contactNumber,required String address,required String imageUrl,required String documentUrl}) {
 
-      final databaseRef = FirebaseDatabase.instance.ref().child("Users");
+      final databaseRef = FirebaseDatabase.instance.ref().child('Users');
       final String key = databaseRef.push().key!;
 
       Map<String,dynamic> users = {
@@ -171,8 +184,14 @@ class _UserDetailsFormState extends State<UserDetailsForm> {
 
       databaseRef.child(key).set(users);
 
+      isLoading.value = false;
+
+      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const HomePage()), (route) => false);
+
+
     }
 
+    /// Pick Pdf Document From Local Storage
    pickDocument() async {
     FilePickerResult? pickedFile = await FilePicker.platform.pickFiles(
         allowMultiple: false,
@@ -190,7 +209,7 @@ class _UserDetailsFormState extends State<UserDetailsForm> {
     });
   }
 
-
+  /// Pick Image From Local Storage
     pickImage() async {
     FilePickerResult? pickedFile = await FilePicker.platform.pickFiles(
       allowMultiple: false,

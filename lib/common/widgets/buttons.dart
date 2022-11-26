@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/colors.dart';
 
+/// Elevated Button
 class ElevatedButtonShow extends StatelessWidget {
   final String buttonName;
   final Function onPressedFunction;
@@ -21,7 +22,7 @@ class ElevatedButtonShow extends StatelessWidget {
   }
 }
 
-
+/// Outlined Button
 class OutlinedButtonShow extends StatelessWidget {
   final String buttonName;
   final Function onPressedFunction;
